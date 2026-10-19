@@ -85,7 +85,7 @@ button,input,select{font:inherit;color:inherit}
 .bar u b{display:block;height:100%;background:var(--bulb)}
 #derbyBar{position:absolute;top:max(88px,calc(env(safe-area-inset-top) + 80px));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:8px 16px;border:2px solid var(--bulb);font:700 14px var(--f-ui);color:var(--chalk);white-space:nowrap}
 #derbyBar small{font:800 11px var(--f-ui);letter-spacing:.18em;color:var(--bulb)}#derbyBar b.hr{font:400 26px var(--f-disp);color:var(--bulb)}#derbyBar[hidden]{display:none}
-#starCard{position:absolute;top:max(64px,calc(env(safe-area-inset-top) + 56px));right:12px;display:flex;flex-direction:column;gap:6px;padding:8px;pointer-events:auto;min-width:190px}#starCard[hidden]{display:none}
+#starCard{position:absolute;top:max(100px,calc(env(safe-area-inset-top) + 92px));right:12px;display:flex;flex-direction:column;gap:6px;padding:8px;pointer-events:auto;min-width:190px}#starCard[hidden]{display:none}
 #starCard .meter{position:relative;height:12px;border-radius:6px;background:#0008;overflow:hidden;border:1px solid #ffc94a66}#starCard .meter i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#ff8a3d,#ffc94a)}#starCard .meter span{position:absolute;left:4px;top:-3px;font-size:12px;color:#fff;z-index:1}
 #starCard .sc{display:flex;align-items:center;gap:8px;background:var(--board-3);border:2px solid transparent;border-radius:8px;padding:5px 8px;color:var(--dim);font:700 13px var(--f-ui);cursor:pointer;text-align:left}
 #starCard .sc.ok{color:var(--chalk);border-color:var(--bulb);box-shadow:0 0 12px #ffc94a55}#starCard .sc .k{font:800 11px var(--f-ui);background:#c9ced2;color:#111;border-radius:4px;padding:1px 5px}#starCard .sc b{flex:1}#starCard .sc .dots{color:var(--bulb);letter-spacing:1px}
@@ -4023,7 +4023,12 @@ function camBat(snap) {
 // Heat is the fastball in mph (10 = 60, 9 = 55, 8 = 50, ...). On the field the pitch flies at 66% of that so a kid
 // can hit it on a screen; the gaps between a 40 and a 55 mph pitcher stay the same as in real life.
 const PITCH_MULT = { fast: 1, normal: 0.95, change: 0.8, curve: 0.86 };
-const MOON_EV = 125;   // a Moon Shot's exit speed (ft/s): over the fence on a Little League field
+// Moon Shot: not an automatic homer. It multiplies the swing's exit speed by the tier's power and pulls the launch
+// angle up toward a home-run arc (more so the better the contact), with a slightly bigger sweet spot. Good contact
+// leaves the park most of the time; a weak swing is a long fly ball or worse. Lasts for one swing (a take keeps it).
+const moonLift = q => 0.3 + 0.5 * q, MOON_POW = 7;   // a Moon Shot swings with at least 7 power
+// Measured (good pitches, human-like timing): squared up (q > 0.75) it is a homer ~70% at tier I, ~80% at II, ~90%
+// at III for an average hitter (sluggers ~95%+); decent contact 0-15%; weak contact never.
 function pitchSpeedFt(pe, type) { return mphOf(pe.vel) * 1.4667 * 0.66 * dif().pitch * PITCH_MULT[type]; }
 function mph(pe, type) { return Math.round(mphOf(pe.vel) * PITCH_MULT[type]); }
 function throwPitch(type, aimX, aimZ, side, curveAx, isHuman) {
@@ -4128,7 +4133,7 @@ function resolveContact() {
   const cx = isH ? bat.off : (bat.cpuAim ?? px);
   const SA = PL.star && PL.star.armed && PL.star.armed.pid === bat.id ? PL.star.armed.move : null, SP = SA ? PL.star.armed.pow : 1;
   if (SA === 'eagle') PL.star.armed = null;   // Eagle Eye is for this pitch
-  const Rch = swingReach(pl, isH) * (SA === 'eagle' ? 1.2 + 0.2 * SP : SA === 'moon' ? 1.3 : 1);
+  const Rch = swingReach(pl, isH) * (SA === 'eagle' ? 1.2 + 0.2 * SP : SA === 'moon' ? 1.15 : 1);
   if (bat.bunt) {
     const h = Math.abs(px - cx);
     if (h > Rch * 1.25 || pz < 0.7 || pz > 4.3) { bat.res = 'miss'; return null; }
@@ -4138,20 +4143,20 @@ function resolveContact() {
     return { ang, ev, la, q: 0.2, bunt: true };
   }
   if (bat.swingT == null) return null;
-  const W = swingWindow(pl, isH) * (SA === 'eagle' ? SP : SA === 'moon' ? 1.4 : PL.derby ? 1.7 : 1), dt = (bat.swingT + SWING_LAG) - pc.T;
+  const W = swingWindow(pl, isH) * (SA === 'eagle' ? SP : SA === 'moon' ? 1.2 : PL.derby ? 1.7 : 1), dt = (bat.swingT + SWING_LAG) - pc.T;
   const h = Math.abs(px - cx);
-  if (Math.abs(dt) > W || h > Rch) { bat.res = 'miss'; return null; }
+  if (Math.abs(dt) > W || h > Rch) { bat.res = 'miss'; if (SA === 'moon') PL.star.armed = null; return null; }
   const qt = 1 - Math.pow(Math.abs(dt) / W, 1.6), qh = 1 - Math.pow(h / Rch, 2), qv = 1 - clamp(Math.abs(pz - 2.45) - 0.95, 0, 1.5) / 1.5 * 0.7;
   const q = qt * qh * qv;
-  if (q < 0.08) { bat.res = 'foultip'; sfx('bat', 0.1); return { foulTip: true }; }
+  if (q < 0.08) { bat.res = 'foultip'; if (SA === 'moon') PL.star.armed = null; sfx('bat', 0.1); return { foulTip: true }; }
   const e = -dt / W, pullSign = bat.lefty ? 1 : -1;
   const ang = pullSign * e * 62 + gauss() * 7;
   let la = 12 + (pz - 2.45) * 14 + (1 - qh) * (rnd() < 0.5 ? -1 : 1) * 18 + gauss() * 9 + (bat.loft || 0) * 12 + (pl.pow - 5) * 0.8;
   if (q < 0.3) la += (rnd() < 0.5 ? -1 : 1) * rr(10, 25);
   la = clamp(la, -25, 70);
-  let ev = (60 + 3.6 * pl.pow) * (0.35 + 0.65 * q);
+  let ev = (60 + 3.6 * (SA === 'moon' ? Math.max(pl.pow, MOON_POW) : pl.pow)) * (0.35 + 0.65 * q);
   if (PL.derby) { const DK = [1.0, 0.02, 1.07], qd = Math.min(1, q * DK[0] + DK[1]); ev = (60 + 3.6 * pl.pow) * (0.35 + 0.65 * qd) * DK[2]; la = clamp(la * 0.5 + 15, -10, 55); sfx('bat', qd); return { ang: clamp(ang, -40, 40), ev, la, q: qd }; }   // derby: batting practice and a lively ball
-  if (SA === 'moon') { PL.star.armed = null; sfx('bat', 1); return { ang: clamp(ang, -32, 32), ev: Math.max(ev, MOON_EV), la: rr(28, 34), q: 1, moon: true }; }   // Moon Shot: gone
+  if (SA === 'moon') { PL.star.armed = null; ev *= SP; la = clamp(la + (30 - la) * moonLift(q), -10, 55); sfx('bat', Math.min(1, q + 0.3)); return { ang, ev, la, q, moon: true }; }
   sfx('bat', q);
   return { ang, ev, la, q };
 }
@@ -5140,7 +5145,7 @@ function syncScene(rt) {
 // derbyHR / derbyFinish, which play.js calls when PL.derby is set.
 // =====================================================================
 const STARS = {
-  moon: { name: 'Moon Shot', role: 'bat', cost: [90, 100, 140], uses: [1, 2, 3], pow: [1, 1, 1], sub: 'Make contact and it is gone: a towering fly to the pull side.', tiers: ['1 at-bat a game', '2 at-bats a game', '3 at-bats a game'] },
+  moon: { name: 'Moon Shot', role: 'bat', solo: 1, cost: [90, 100, 140], uses: [1, 2, 3], pow: [1.22, 1.28, 1.34], sub: 'One swing with a lot more power and loft. Square it up and it is usually gone; a weak swing is just a long fly. Star power does not add Moon Shots.', tiers: ['big power, 1 swing a game', 'bigger power, 2 swings a game', 'huge power, 3 swings a game'] },
   eagle: { name: 'Eagle Eye', role: 'bat', mid: 1, cost: [50, 60, 80], uses: [1, 2, 3], pow: [2, 2.5, 3], sub: 'Use it while the pitch is coming: time slows down and your swing window gets huge.', tiers: ['2x window, 1 pitch a game', '2.5x window + longer slow-mo, 2 a game', '3x window, 3 a game'] },
   rocket: { name: 'Rocket Legs', role: 'run', mid: 1, cost: [40, 50, 70], uses: [1, 2, 3], pow: [1.6, 1.9, 2.2], sub: 'Mid-play: turbo speed for the runner you are steering.', tiers: ['1.6x speed, once a game', '1.9x speed, twice', '2.2x speed, 3 times'] },
   laser: { name: 'Laser Arm', role: 'fld', mid: 1, cost: [40, 50, 70], uses: [1, 2, 3], pow: [1.7, 2.2, 2.8], sub: 'Mid-play: your fielder\'s next throw is a rocket, right on the bag.', tiers: ['1.7x throw, once a game', '2.2x throw, twice', '2.8x throw, 3 times'] },
@@ -5159,7 +5164,8 @@ function starOwned(pid) {
   return starList(S, pid);
 }
 function starReset() { PL.star = { used: {}, armed: null, meter: 0, bonus: 0 }; }
-const starLeft = (pid, o) => STARS[o.id].uses[o.tier - 1] + (PL.star.bonus || 0) - (PL.star.used[pid + ':' + o.id] || 0);
+const starBonus = o => STARS[o.id].solo ? 0 : PL.star.bonus || 0;   // star power adds a use of every move except Moon Shot
+const starLeft = (pid, o) => STARS[o.id].uses[o.tier - 1] + starBonus(o) - (PL.star.used[pid + ':' + o.id] || 0);
 // who the buttons are for right now: {pid, roles, r | f}
 function starTarget(seat) {
   if (!PL.gs || !human(seat) || PL.derby) return null;
@@ -5205,7 +5211,7 @@ function starGain(gs, kind) {
   if (!side) return;
   const team = gs.teams[side === 'bat' ? bt : 1 - bt]; if (!team.roster.some(p => starList(S, p.id).length)) return;
   PL.star.meter += STAR_GAIN[side][kind] || 0;
-  if (PL.star.meter >= 100) { PL.star.meter -= 100; PL.star.bonus++; flash('★ STAR POWER! +1 USE OF EVERY MOVE', 'gold', 1.8); sfx('charge'); say('Star power!', { rate: 1.1 }); }
+  if (PL.star.meter >= 100) { PL.star.meter -= 100; PL.star.bonus++; flash('★ STAR POWER! +1 USE OF YOUR MOVES', 'gold', 1.8); sfx('charge'); say('Star power!', { rate: 1.1 }); }
   starCard();
 }
 { const _recPA = recPA; recPA = (gs, kind, o) => { const r = _recPA(gs, kind, o); try { starGain(gs, kind); } catch (e) { } return r; }; }
@@ -5225,7 +5231,7 @@ function starCard() {
   if (seat == null || APP.mode !== 'game' || APP.paused) { if (el) el.hidden = true; return; }
   if (!el) { el = document.createElement('div'); el.id = 'starCard'; el.className = 'plate'; $('hud').appendChild(el); el.addEventListener('pointerdown', e => { const b = e.target.closest('[data-slot]'); if (b) { e.stopPropagation(); starPress(+b.dataset.s, +b.dataset.slot); } }); }
   const SS = starSlots(seat), pad = devicesFor(seat).pads.some(P => P && P.on), keys = pad ? ['View', 'LS'] : (SEATS.two && seat === 1 ? ['\\', ']'] : ['R', 'T']);
-  const html = `<div class="meter"><span>★</span><i style="width:${Math.round(PL.star.meter)}%"></i></div>` + SS.slots.map((x, i) => { const M = STARS[x.o.id], tot = M.uses[x.o.tier - 1] + (PL.star.bonus || 0); return `<button class="sc ${x.ok ? 'ok' : ''}" data-slot="${i}" data-s="${seat}"><span class="k">${keys[i]}</span><b>${M.name}${x.o.tier > 1 ? ' ' + STAR_TIER[x.o.tier - 1] : ''}</b><span class="dots">${'●'.repeat(Math.max(0, x.left))}${'○'.repeat(Math.max(0, tot - Math.max(0, x.left)))}</span></button>`; }).join('');
+  const html = `<div class="meter"><span>★</span><i style="width:${Math.round(PL.star.meter)}%"></i></div>` + SS.slots.map((x, i) => { const M = STARS[x.o.id], tot = M.uses[x.o.tier - 1] + starBonus(x.o); return `<button class="sc ${x.ok ? 'ok' : ''}" data-slot="${i}" data-s="${seat}"><span class="k">${keys[i]}</span><b>${M.name}${x.o.tier > 1 ? ' ' + STAR_TIER[x.o.tier - 1] : ''}</b><span class="dots">${'●'.repeat(Math.max(0, x.left))}${'○'.repeat(Math.max(0, tot - Math.max(0, x.left)))}</span></button>`; }).join('');
   if (el.innerHTML !== html) el.innerHTML = html; el.hidden = false;
 }
 
