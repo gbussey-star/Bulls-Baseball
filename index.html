@@ -352,9 +352,12 @@ function inPark(p) { const r = Math.hypot(p.x, p.y); return r < G.F; }
 // 'dirt' (skinned), warning track, scoreboard, the BULLS padded backstop, a soccer field past the outfield.
 const PARKS = {
   bulls: { name: 'Bulls Park', sub: 'The big park: lights, packed stands, a scoreboard · 200 ft', F: 200, fenceH: 6, night: true, lights: true, fence: 'pads', stands: 'big', infield: 'grass', mow: true, track: true, board: true, backstop: 'bulls' },
-  sgC: { name: 'S. Germantown Field C', sub: 'League field · day game · 200 ft chain-link fence', F: 200, fenceH: 6, fence: 'chain', stands: 'small', infield: 'grass', track: true, board: true, backstop: 'park' },
-  fh: { name: 'Fountain Hills', sub: 'Park field · dirt infield · freestanding 200 ft outfield fence, no side fences · soccer field behind the third-base dugout, basketball courts and a playground past left field', F: 200, fenceH: 6, fence: 'chain', sides: false, stands: 'tiny', infield: 'dirt', track: false, board: false, backstop: 'park', soccer: true, courts: true, playground: true },
-  sgE: { name: 'S. Germantown Field E', sub: 'All-dirt softball field · deep 275 ft fence', F: 275, fenceH: 6, fence: 'chain', stands: 'small', infield: 'dirt', track: false, board: true, backstop: 'park' },
+  sgC: { name: 'S. Germantown Field C', sub: 'League field · day game · 215 ft chain-link fence · the Miracle League field behind first base', F: 215, fenceH: 6, fence: 'chain', stands: 'small', infield: 'grass', track: true, board: true, backstop: 'park', shack: false, gazebo: true, miracle: true, treeRow: { sd: 1, pine: true },
+    dugS: 69, bleach: [[-1, 10, 38, 5, 29], [1, 8, 40, 5, 28]] },   // bleachers beside home, dugouts farther down both lines
+  fh: { name: 'Fountain Hills', sub: 'Park field · dirt infield · freestanding 255 ft fence, no side fences · soccer field behind third base, basketball and tennis courts and a playground past left field', F: 255, fenceH: 6, fence: 'chain', sides: false, stands: 'tiny', infield: 'dirt', track: false, board: false, backstop: 'park', shack: false, soccer: true, courts: true, tennis: true, playground: true, pool: true, lot: [48, -152], treeRow: { sd: -1 },
+    dugS: 27, bleach: [[-1, -3, 14, 3, 27], [1, -3, 14, 3, 27]] },   // covered benches close to home, a small bleacher on each side right by the backstop
+  sgE: { name: 'S. Germantown Field E', sub: 'All-dirt softball field · deep 285 ft fence · parking behind the third-base fence', F: 285, fenceH: 6, fence: 'chain', stands: 'small', infield: 'dirt', track: false, board: true, backstop: 'park', shack: false, lot: [-272, -46],
+    dugS: 70, bleach: [[-1, 6, 44, 3, 26], [1, -4, 48, 3, 26]] },   // long bleachers right along both fences from home
 };
 const parkOf = id => PARKS[id] || PARKS.bulls;
 // the Field picker on Play Ball (SETTINGS.park) and on the Season screen (SETTINGS.seasonPark)
@@ -3583,59 +3586,108 @@ function stDaySky(C) {
   const cm = new THREE.SpriteMaterial({ map: stTex(cc), fog: false, depthWrite: false, transparent: true, opacity: 0.85 });
   for (let i = 0; i < 12; i++) { const a = stR() * Math.PI * 2, el = (8 + stR() * 22) * D2R, s = new THREE.Sprite(cm); s.position.set(C.x + Math.sin(a) * Math.cos(el) * 2200, C.y + Math.cos(a) * Math.cos(el) * 2200, Math.sin(el) * 2200); s.scale.set(500 + stR() * 500, 200 + stR() * 160, 1); fieldGroup.add(s); }
 }
-// Fountain Hills, past the third-base side and left field. stLP(-1, s, off): s ft out the third-base line, off ft
-// into foul ground. The soccer field sits behind the third-base dugout, its long side running away from the line.
-const SOCCER = { s0: 2, s1: 162, o0: 62, o1: 312 };
+// Park surroundings, placed from the aerial photos. stLP(sd, s, off): s ft out a foul line (sd -1 = third base),
+// off ft into foul ground; G.polar(r, deg): r ft from home, deg from center field (left field negative).
+// Fountain Hills: a full soccer field behind the third-base side, running parallel to the line from behind home plate
+// out past third; a basketball court just past the left-field corner; two tennis courts beyond left-center; a
+// playground in foul ground past the left-field fence; the community pool far beyond right-center.
+const SOCCER = { s0: -170, s1: 165, o0: 80, o1: 255 };
 function stSoccer(FAR) {
-  const { s0, s1, o0, o1 } = SOCCER, w = o1 - o0, d = s1 - s0, [c, g] = stCanvas(1024, 656), kx = 1024 / w, ky = 656 / d;
-  g.fillStyle = '#4a8a3c'; g.fillRect(0, 0, 1024, 656); g.fillStyle = 'rgba(255,255,255,.05)'; for (let x = 0; x < 1024; x += 82) g.fillRect(x, 0, 41, 656);
-  g.strokeStyle = 'rgba(250,250,240,.92)'; g.lineWidth = 5; const R = (x, y, ww, hh) => g.strokeRect(x * kx, y * ky, ww * kx, hh * ky);
-  R(8, 8, w - 16, d - 16); g.beginPath(); g.moveTo(w / 2 * kx, 8 * ky); g.lineTo(w / 2 * kx, (d - 8) * ky); g.stroke();
-  g.beginPath(); g.ellipse(w / 2 * kx, d / 2 * ky, 26 * kx, 26 * ky, 0, 0, 7); g.stroke();
-  for (const x of [8, w - 8 - 36]) R(x, d / 2 - 40, 36, 80); for (const x of [8, w - 8 - 14]) R(x, d / 2 - 18, 14, 36);
-  const n = v2(-0.7071, -0.7071), u = v2(-0.7071, 0.7071), sm2 = (s0 + s1) / 2, ctr = stLP(-1, sm2, (o0 + o1) / 2);
+  const { s0, s1, o0, o1 } = SOCCER, w = s1 - s0, d = o1 - o0, [c, g] = stCanvas(1024, Math.round(1024 * d / w)), kx = 1024 / w, ky = c.height / d;
+  g.fillStyle = '#4a8a3c'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = 'rgba(255,255,255,.05)'; for (let x = 0; x < 1024; x += 64) g.fillRect(x, 0, 32, c.height);
+  g.strokeStyle = 'rgba(250,250,240,.92)'; g.lineWidth = 4; const R = (x, y, ww, hh) => g.strokeRect(x * kx, y * ky, ww * kx, hh * ky);
+  R(6, 6, w - 12, d - 12); g.beginPath(); g.moveTo(w / 2 * kx, 6 * ky); g.lineTo(w / 2 * kx, (d - 6) * ky); g.stroke();
+  g.beginPath(); g.ellipse(w / 2 * kx, d / 2 * ky, 30 * kx, 30 * ky, 0, 0, 7); g.stroke();
+  for (const x of [6, w - 6 - 54]) R(x, d / 2 - 66, 54, 132); for (const x of [6, w - 6 - 18]) R(x, d / 2 - 30, 18, 60);
+  const u = v2(-0.7071, 0.7071), n = v2(-0.7071, -0.7071), om = (o0 + o1) / 2, ctr = stLP(-1, (s0 + s1) / 2, om);   // u runs out the third-base line
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ map: stTex(c, false, 8) }));
-  m.position.set(ctr.x, ctr.y, 0.06); m.rotation.z = Math.atan2(n.y, n.x); m.receiveShadow = true; fieldGroup.add(m);
-  for (const oe of [o0 + 8, o1 - 8]) {
-    for (const ds of [-12, 12]) { const p = stLP(-1, sm2 + ds, oe); FAR.cyl(0.3, 8, p.x, p.y, 0, '#f4f4f4'); }
-    const p = stLP(-1, sm2, oe); FAR.box(24.6, 0.6, 0.6, p.x, p.y, 8, Math.atan2(u.y, u.x), '#f4f4f4');
+  m.position.set(ctr.x, ctr.y, 0.06); m.rotation.z = Math.atan2(u.y, u.x); m.receiveShadow = true; fieldGroup.add(m);
+  for (const se of [s0 + 6, s1 - 6]) {   // goals at the two ends, facing each other along the line
+    for (const dd of [-12, 12]) { const p = stLP(-1, se, om + dd); FAR.cyl(0.3, 8, p.x, p.y, 0, '#f4f4f4'); }
+    const p = stLP(-1, se, om), q = stLP(-1, se + (se < 0 ? -3 : 3), om); FAR.box(24.6, 0.6, 0.6, p.x, p.y, 8, Math.atan2(n.y, n.x), '#f4f4f4'); FAR.box(24, 0.15, 7.6, q.x, q.y, 3.9, Math.atan2(n.y, n.x), '#d8dde2');
   }
 }
 const inSoccer = (x, y, pad = 0) => { const s = 0.7071 * (y - x), o = -0.7071 * (x + y); return s > SOCCER.s0 - pad && s < SOCCER.s1 + pad && o > SOCCER.o0 - pad && o < SOCCER.o1 + pad; };
-// two basketball courts past the left field fence
-const COURTS = { x: -118, y: 282 };
+// a flat painted pad (court, deck) centered at (x, y), long side along the angle rz
+function stPad(x, y, w, d, rz, draw, z = 0.07) {
+  const [c, g] = stCanvas(1024, Math.round(1024 * d / w)); draw(g, c.width, c.height, c.width / w);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ map: stTex(c, false, 8) })); m.position.set(x, y, z); m.rotation.z = rz; m.receiveShadow = true; fieldGroup.add(m);
+}
+const stAt = (x, y, rz) => (lx, ly) => v2(x + lx * Math.cos(rz) - ly * Math.sin(rz), y + lx * Math.sin(rz) + ly * Math.cos(rz));   // local -> world on a pad
+// one full basketball court just past the left-field corner, running along the fence
+const COURTS = (() => { const p = G.polar(312, -42); return { x: p.x, y: p.y, rz: Math.atan2(Math.sin(42 * D2R), Math.cos(42 * D2R)) }; })();
 function stCourts(FAR) {
-  const W = 110, H = 84, [c, g] = stCanvas(1024, 782), k = 1024 / W;
-  g.fillStyle = '#3d4247'; g.fillRect(0, 0, 1024, 782); g.fillStyle = 'rgba(255,255,255,.03)'; for (let i = 0; i < 1400; i++) g.fillRect(Math.random() * 1024, Math.random() * 782, 2, 2);
-  g.strokeStyle = 'rgba(245,245,240,.9)'; g.lineWidth = 4;
-  for (const cx of [W * 0.25, W * 0.75]) {   // each court runs up and down the canvas (long axis along world y)
-    const x0 = (cx - 22) * k, y0 = 4 * k, cw = 44 * k, ch = (H - 8) * k; g.strokeRect(x0, y0, cw, ch);
-    g.beginPath(); g.moveTo(x0, y0 + ch / 2); g.lineTo(x0 + cw, y0 + ch / 2); g.stroke(); g.beginPath(); g.arc(cx * k, y0 + ch / 2, 6 * k, 0, 7); g.stroke();
-    for (const e of [0, 1]) { const yb = e ? y0 + ch : y0, sgn = e ? -1 : 1; g.strokeRect((cx - 6) * k, e ? yb - 19 * k : yb, 12 * k, 19 * k); g.beginPath(); g.arc(cx * k, yb, 19 * k, e ? Math.PI : 0, e ? 2 * Math.PI : Math.PI); g.stroke(); }
-  }
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshLambertMaterial({ map: stTex(c, false, 8) })); m.position.set(COURTS.x, COURTS.y, 0.07); m.receiveShadow = true; fieldGroup.add(m);
-  for (const cx of [-W * 0.25, W * 0.25]) for (const e of [-1, 1]) {
-    const x = COURTS.x + cx, y = COURTS.y + e * (H / 2 - 1);
-    FAR.cyl(0.35, 12.5, x, y, 0, '#4a5058'); FAR.box(6, 0.3, 3.6, x, y - e * 1.2, 11.8, 0, '#f2f2ee'); FAR.box(2, 0.32, 1.5, x, y - e * 1.15, 11.2, 0, '#c8102e');
-    FAR.add(new THREE.TorusGeometry(0.75, 0.08, 4, 12), stM(x, y - e * 2.3, 10, 0, 0), '#ff6a1a');
+  const { x, y, rz } = COURTS, W = 104, H = 60, at = stAt(x, y, rz);
+  stPad(x, y, W, H, rz, (g, cw, ch, k) => {
+    g.fillStyle = '#3d4247'; g.fillRect(0, 0, cw, ch); g.strokeStyle = 'rgba(245,245,240,.9)'; g.lineWidth = 4;
+    g.strokeRect(5 * k, 5 * k, 94 * k, 50 * k); g.beginPath(); g.moveTo(52 * k, 5 * k); g.lineTo(52 * k, 55 * k); g.stroke(); g.beginPath(); g.arc(52 * k, 30 * k, 6 * k, 0, 7); g.stroke();
+    for (const e of [0, 1]) { const xb = e ? 99 * k : 5 * k, sg = e ? -1 : 1; g.strokeRect(e ? xb - 19 * k : xb, 24 * k, 19 * k, 12 * k); g.beginPath(); g.arc(xb + sg * 5.25 * k, 30 * k, 19.75 * k, e ? Math.PI / 2 : -Math.PI / 2, e ? 3 * Math.PI / 2 : Math.PI / 2); g.stroke(); }
+  });
+  for (const e of [-1, 1]) {   // hoops at each end
+    const pole = at(e * 49, 0), board = at(e * 46, 0), rim = at(e * 44.6, 0);
+    FAR.cyl(0.35, 12.5, pole.x, pole.y, 0, '#4a5058'); FAR.box(0.3, 6, 3.6, board.x, board.y, 11.8, rz, '#f2f2ee'); FAR.add(new THREE.TorusGeometry(0.75, 0.08, 4, 12), stM(rim.x, rim.y, 10), '#ff6a1a');
   }
 }
-// a playground in foul ground behind the left field fence: wood chips, a play tower with a slide, a swing set
-const PLAYG = { x: -176, y: 122 };
+// two tennis courts side by side beyond left-center, with a fence around them
+const TENNIS = (() => { const p = G.polar(355, -15); return { x: p.x, y: p.y }; })();
+function stTennis(FAR) {
+  const { x, y } = TENNIS, W = 120, H = 112, at = stAt(x, y, 0);
+  stPad(x, y, W, H, 0, (g, cw, ch, k) => {
+    g.fillStyle = '#3f6b52'; g.fillRect(0, 0, cw, ch);
+    for (const cy of [H * 0.27, H * 0.73]) {   // each court runs along x: 78 x 36 ft doubles, singles lines, service boxes
+      g.fillStyle = '#4f7f9c'; g.fillRect(21 * k, (cy - 18) * k, 78 * k, 36 * k); g.strokeStyle = 'rgba(250,250,245,.95)'; g.lineWidth = 3;
+      g.strokeRect(21 * k, (cy - 18) * k, 78 * k, 36 * k); g.strokeRect(21 * k, (cy - 13.5) * k, 78 * k, 27 * k);
+      g.beginPath(); for (const sx of [39, 81]) { g.moveTo(sx * k, (cy - 13.5) * k); g.lineTo(sx * k, (cy + 13.5) * k); } g.moveTo(39 * k, cy * k); g.lineTo(81 * k, cy * k); g.stroke();
+    }
+  });
+  for (const cy of [H * 0.27, H * 0.73]) { const p = at(0, cy - H / 2); FAR.box(0.25, 42, 3.1, p.x, p.y, 1.55, 0, '#f4f4f4'); FAR.box(0.15, 42, 2.6, p.x, p.y, 1.3, 0, '#2a2f33'); }   // nets
+  for (const [lx, ly] of [[-W / 2, -H / 2], [W / 2, -H / 2], [-W / 2, H / 2], [W / 2, H / 2]]) { const p = at(lx, ly); FAR.cyl(0.25, 10, p.x, p.y, 0, '#3b4a40'); }
+  for (const [a, b] of [[[-W / 2, -H / 2], [W / 2, -H / 2]], [[W / 2, -H / 2], [W / 2, H / 2]], [[W / 2, H / 2], [-W / 2, H / 2]], [[-W / 2, H / 2], [-W / 2, -H / 2]]]) FAR.beam(at(...a), at(...b), 9.9, 0.25, '#3b4a40');
+}
+// a playground in foul ground past the left-field fence: wood chips, a play tower with a slide, a swing set
+const PLAYG = (() => { const p = G.polar(300, -65); return { x: p.x, y: p.y }; })();
 function stPlayground(FAR) {
-  const { x, y } = PLAYG, mulch = new THREE.Mesh(new THREE.CircleGeometry(30, 32), new THREE.MeshLambertMaterial({ color: '#8a6440' })); mulch.position.set(x, y, 0.05); mulch.receiveShadow = true; fieldGroup.add(mulch);
-  const tx = x + 4, ty = y + 6;
+  const { x, y } = PLAYG, mulch = new THREE.Mesh(new THREE.CircleGeometry(36, 32), new THREE.MeshLambertMaterial({ color: '#a07a4e' })); mulch.position.set(x, y, 0.05); mulch.receiveShadow = true; fieldGroup.add(mulch);
+  const tx = x + 6, ty = y + 6;
   for (const [dx, dy] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) FAR.cyl(0.4, 13, tx + dx, ty + dy, 0, '#2f6fd6');
   FAR.box(10.8, 10.8, 0.6, tx, ty, 5, 0, '#ffd23f'); FAR.box(12, 12, 0.6, tx, ty, 13.2, 0, '#c8102e'); FAR.add(ST_GEO.gable, stM(tx, ty, 13.5, 0, 0, 12, 12, 4), '#c8102e');
   FAR.box(3.4, 16, 0.4, tx + 8.5, ty - 7, 2.6, 0.4, '#3fdc5a', -0.33); FAR.box(0.3, 16, 1.2, tx + 10.2, ty - 7, 3.2, 0.4, '#2f9a48', -0.33); FAR.box(0.3, 16, 1.2, tx + 6.8, ty - 7, 3.2, 0.4, '#2f9a48', -0.33);   // the slide
   for (let i = 0; i < 4; i++) FAR.box(4, 0.4, 0.4, tx - 5, ty - 5.5 - i * 0.9, 1 + i * 1.2, 0, '#ff6a1a');   // a ladder
-  const sx = x - 16, sy = y - 10;   // the swing set: an A-frame each end, a top bar, three swings
+  const sx = x - 16, sy = y - 12;   // the swing set: an A-frame each end, a top bar, three swings
   for (const e of [-9, 9]) { FAR.box(0.4, 0.4, 11, sx + e, sy - 2.2, 5.2, 0, '#5a6470', 0.38); FAR.box(0.4, 0.4, 11, sx + e, sy + 2.2, 5.2, 0, '#5a6470', -0.38); }
   FAR.box(18.6, 0.45, 0.45, sx, sy, 10.4, 0, '#5a6470');
   for (const e of [-5, 0, 5]) { FAR.box(0.08, 0.08, 7.6, sx + e - 0.8, sy, 6.4, 0, '#9aa3ad'); FAR.box(0.08, 0.08, 7.6, sx + e + 0.8, sy, 6.4, 0, '#9aa3ad'); FAR.box(2, 0.9, 0.2, sx + e, sy, 2.6, 0, '#151515'); }
 }
+// the community pool far beyond right-center: a concrete deck, two pools, a bathhouse
+const POOL = (() => { const p = G.polar(455, 12); return { x: p.x, y: p.y }; })();
+function stPool(FAR) {
+  const { x, y } = POOL;
+  stPad(x, y, 160, 130, 0.5, (g, cw, ch, k) => {
+    g.fillStyle = '#c9c6bb'; g.fillRect(0, 0, cw, ch); g.fillStyle = '#2b78c2'; g.fillRect(28 * k, 22 * k, 82 * k, 46 * k); g.fillRect(28 * k, 68 * k, 40 * k, 36 * k);
+    g.fillStyle = '#4fa3e0'; g.beginPath(); g.arc(128 * k, 92 * k, 16 * k, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2; for (let i = 1; i < 6; i++) { g.beginPath(); g.moveTo(28 * k, (22 + i * 7.6) * k); g.lineTo(110 * k, (22 + i * 7.6) * k); g.stroke(); }
+  });
+  const at = stAt(x, y, 0.5), b = at(60, -48); FAR.box(34, 16, 10, b.x, b.y, 5, 0.5, '#e8dcc4'); FAR.add(ST_GEO.gable, stM(b.x, b.y, 10, 0.5, 0, 36, 18, 5), '#a2402e');
+}
+// South Germantown Field C: the Miracle League's turf field sits back to back with it behind home on the first-base
+// side, a gazebo stands behind the backstop, and evergreens line the first-base side
+const MIRACLE = { x: 63, y: -78, dir: Math.atan2(0.947, -0.322) / D2R, R: 140 };   // home plate, the way it faces (deg, polar convention), fence radius
+function stMiracle(FAR) {
+  const { x, y, dir, R } = MIRACLE, pol = (r, a) => { const q = G.polar(r, dir + a); return v2(x + q.x, y + q.y); };
+  const sector = new THREE.Mesh(new THREE.CircleGeometry(R, 32, Math.PI / 2 - (dir + 47) * D2R, 94 * D2R), new THREE.MeshLambertMaterial({ color: '#4f8f7c' }));
+  sector.position.set(x, y, 0.08); sector.receiveShadow = true; fieldGroup.add(sector);
+  const dia = new THREE.Mesh(new THREE.CircleGeometry(30, 4, Math.PI / 2 - dir * D2R), new THREE.MeshLambertMaterial({ color: '#5fa08a' })); const dc = pol(30, 0); dia.position.set(dc.x, dc.y, 0.1); fieldGroup.add(dia);
+  for (const a of [-45, 45]) FAR.beam(pol(1, a), pol(R, a), 0.12, 0.5, '#f4f4f4', 0.04);   // foul lines
+  for (let a = -45; a < 45; a += 5) FAR.beam(pol(R, a), pol(R, a + 5), 3, 0.3, '#24432f', 6);   // the outfield fence
+  for (let a = 135; a < 225; a += 15) FAR.beam(pol(16, a), pol(16, a + 15), 6, 0.2, '#6d7680', 12);   // backstop
+}
+function stGazebo(FAR) {   // an eight-sided pavilion behind home plate
+  const gx = 0, gy = -82;
+  FAR.cyl(16, 0.3, gx, gy, 0, '#bdb8ac'); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; FAR.cyl(0.45, 9, gx + Math.cos(a) * 12.5, gy + Math.sin(a) * 12.5, 0, '#f2efe6'); }
+  FAR.add(new THREE.ConeGeometry(16, 6, 8).rotateX(Math.PI / 2), stM(gx, gy, 12), '#5e6e64'); FAR.cyl(13.5, 0.6, gx, gy, 9, '#f2efe6');
+}
 function buildField() {
-  const P = parkOf(STAD.park), PK = P; applyParkG(P);   // PK: the park, for blocks that use P for their own arrays stR = mulberry32(0xB0115 + Object.keys(PARKS).indexOf(STAD.park || 'bulls') * 977);
+  const P = parkOf(STAD.park), PK = P; applyParkG(P);   // PK: the park, for blocks that use P for their own arrays
+  stR = mulberry32(0xB0115 + Object.keys(PARKS).indexOf(STAD.park || 'bulls') * 977);   // same layout every visit to a park
   const F = G.F, B = G.B, fw = G.fw, fh = G.fenceH, C = new THREE.Vector3(0, 90, 0), night = !!P.night, sk = F / 200;
   ST_GEO.box = new THREE.BoxGeometry(1, 1, 1);
   ST_GEO.cyl = new THREE.CylinderGeometry(1, 1, 1, 10).rotateX(Math.PI / 2);
@@ -3743,23 +3795,24 @@ function buildField() {
 
   // ---- dugouts: block walls, team-colored roof, bench, a water cooler ----
   for (const sd of [-1, 1]) {
-    const home = sd > 0, rz = sd > 0 ? Math.PI / 4 : 3 * Math.PI / 4, tc = home ? '#b3172b' : '#24365a', roof = home ? '#7e1020' : '#1c2a44', block = '#cbc3b0';
+    const home = sd > 0, rz = sd > 0 ? Math.PI / 4 : 3 * Math.PI / 4, tc = home ? '#b3172b' : '#24365a', roof = home ? '#7e1020' : '#1c2a44', block = '#cbc3b0', c = P.dugS || 37;   // c: dugout center, ft down the line
     const at = (s, off, z, w, d, h, col) => { const p = stLP(sd, s, off); NEAR.box(w, d, h, p.x, p.y, z, rz, col); };
     // set 2.5 ft behind the side fence with a low roof, so from the high game cameras it never hides playable foul ground
-    at(37, 29.4, 0.12, 26, 7.2, 0.24, '#8f8f8a');
-    at(37, 33.2, 1.5, 26.8, 0.8, 3.0, tc); at(37, 33.2, 4.95, 26.8, 0.8, 3.9, block);   // ends inside the end walls
-    for (const s of [23.6, 50.4]) at(s, 29.4, 3.45, 0.8, 8.4, 6.9, block);
-    at(37, 29.6, 7.15, 29, 8.6, 0.5, roof); at(37, 25.35, 6.95, 29, 0.35, 1.2, tc); at(37, 25.15, 6.95, 29, 0.1, 0.22, '#ffffff');
-    at(37, 31.6, 1.55, 22, 1.4, 0.28, '#c99b5c'); for (const s of [28, 37, 46]) at(s, 31.6, 0.75, 0.3, 1.0, 1.4, '#555');
-    const cp = stLP(sd, 26.5, 31.2); NEAR.cyl(0.8, 1.6, cp.x, cp.y, 0.24, '#ff7a1a'); NEAR.cyl(0.84, 0.3, cp.x, cp.y, 1.84, '#f4f4f4');
-    for (let i = 0; i < 6; i++) { const hp = stLP(sd, 33 + i * 1.6, 32.5); NEAR.box(0.9, 0.9, 0.75, hp.x, hp.y, 3.6, rz, i % 2 ? tc : '#151515'); }   // helmets on the rack
+    at(c, 29.4, 0.12, 26, 7.2, 0.24, '#8f8f8a');
+    at(c, 33.2, 1.5, 26.8, 0.8, 3.0, tc); at(c, 33.2, 4.95, 26.8, 0.8, 3.9, block);   // ends inside the end walls
+    for (const s of [c - 13.4, c + 13.4]) at(s, 29.4, 3.45, 0.8, 8.4, 6.9, block);
+    at(c, 29.6, 7.15, 29, 8.6, 0.5, roof); at(c, 25.35, 6.95, 29, 0.35, 1.2, tc); at(c, 25.15, 6.95, 29, 0.1, 0.22, '#ffffff');
+    at(c, 31.6, 1.55, 22, 1.4, 0.28, '#c99b5c'); for (const s of [c - 9, c, c + 9]) at(s, 31.6, 0.75, 0.3, 1.0, 1.4, '#555');
+    const cp = stLP(sd, c - 10.5, 31.2); NEAR.cyl(0.8, 1.6, cp.x, cp.y, 0.24, '#ff7a1a'); NEAR.cyl(0.84, 0.3, cp.x, cp.y, 1.84, '#f4f4f4');
+    for (let i = 0; i < 6; i++) { const hp = stLP(sd, c - 4 + i * 1.6, 32.5); NEAR.box(0.9, 0.9, 0.75, hp.x, hp.y, 3.6, rz, i % 2 ? tc : '#151515'); }   // helmets on the rack
   }
 
   // ---- bleachers with an instanced, animated crowd ----
   {
     const secs = [], rd = 2.3, rise = 1.25;
     const big = P.stands === 'big', tiny = P.stands === 'tiny', dens = big ? 1 : tiny ? 0.45 : 0.6;
-    for (const sd of [-1, 1]) for (const s0 of big ? [10, 52] : [54]) secs.push({ o: stLP(sd, s0, 34), u: v2(sd * 0.7071, 0.7071), n: v2(sd * 0.7071, -0.7071), L: tiny ? 18 : big ? 38 : 26, R: tiny ? 3 : big ? 6 : 4, vis: sd < 0 });
+    if (P.bleach) for (const [sd, s0, L, R, off] of P.bleach) secs.push({ o: stLP(sd, s0, off), u: v2(sd * 0.7071, 0.7071), n: v2(sd * 0.7071, -0.7071), L, R, vis: sd < 0 });
+    else for (const sd of [-1, 1]) for (const s0 of big ? [10, 52] : [54]) secs.push({ o: stLP(sd, s0, 34), u: v2(sd * 0.7071, 0.7071), n: v2(sd * 0.7071, -0.7071), L: tiny ? 18 : big ? 38 : 26, R: tiny ? 3 : big ? 6 : 4, vis: sd < 0 });
     if (big) for (const a of [146, 180, 214]) { const rad = v2(Math.sin(a * D2R), Math.cos(a * D2R)), u = v2(rad.y, -rad.x); secs.push({ o: vadd(vmul(rad, 30), vmul(u, -10)), u, n: rad, L: 20, R: 5, vis: a > 200 }); }
     const planks = [], fans = [];
     const SHIRT = ['#c8102e', '#c8102e', '#c8102e', '#de2a45', '#a30d26', '#151515', '#151515', '#242424', '#f4f4f4', '#f4f4f4', '#8d939c', '#1f3a7a', '#f2c531', '#4a90d9', '#2f8a4a', '#ff7a1a', '#7a3fa0', '#e86fa0'];
@@ -3847,7 +3900,9 @@ function buildField() {
 
   // ---- beyond the fences: snack shack, parking lot, trees, houses ----
   {
-    // snack shack behind home plate, facing the entrance
+    // snack shack behind home plate, facing the entrance (Field C has a gazebo there, Fountain Hills nothing)
+    if (P.gazebo) stGazebo(FAR);
+    if (P.shack !== false) {
     const sy = -70;
     FAR.box(30, 12, 9.5, 0, sy, 4.75, 0, '#efe2c4'); FAR.box(30.4, 12.4, 1.6, 0, sy, 0.8, 0, ST_PAL.red);
     FAR.box(33, 15, 0.7, 0, sy + 0.5, 9.9, 0, '#7e1020'); FAR.box(28, 4.2, 0.25, 0, sy - 8, 7.4, 0, ST_PAL.red, -0.35);
@@ -3857,8 +3912,9 @@ function buildField() {
     stFit(ssg, 'SNACK SHACK', 256, 66, 440, 70, ST_PAL.gold, '#151515', 8);
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(20, 5), new THREE.MeshBasicMaterial({ map: stTex(ssc), toneMapped: false })); sign.rotation.x = Math.PI / 2; sign.position.set(0, sy - 7.7, 12.9); fieldGroup.add(sign);
     FAR.box(20.6, 0.4, 5.6, 0, sy - 7.4, 12.9, 0, '#151515');
-    // parking lot on the third base side
-    const lx0 = P.soccer ? 48 : -168, ly0 = -152, lw = 120, ld = 58;   // the lot moves to the first-base side where the soccer field is
+    }
+    // parking lot: behind home on the third base side unless the park says otherwise
+    const [lx0, ly0] = P.lot || [-168, -152], lw = 120, ld = 58;
     FAR.box(lw, ld, 0.2, lx0 + lw / 2, ly0 + ld / 2, 0.05, 0, '#24282c');
     const cars = [], cabs = [], CARC = ['#c8102e', '#f2f2f2', '#9aa3ad', '#1f3a7a', '#151515', '#2f6d9a', '#e8c547', '#5a6b3a', '#c8102e', '#f2f2f2'];
     for (const [row, yc, dir] of [[0, ly0 + 46, 1], [1, ly0 + 12, -1]]) {
@@ -3871,14 +3927,20 @@ function buildField() {
     const trunks = [], leafy = [], pines = [], spots = [];
     for (let tries = 0; spots.length < 210 && tries < 6000; tries++) {
       const a = stR() * Math.PI * 2, r = 262 + Math.pow(stR(), 1.3) * 190, x = C.x + Math.sin(a) * r, y = C.y + Math.cos(a) * r;
-      if (x > (P.soccer ? 20 : -200) && x < (P.soccer ? 200 : -20) && y < -70 && y > -180) continue;
-      if (Math.hypot(x, y) < F + 45 || (P.soccer && inSoccer(x, y, 14)) || (P.courts && Math.abs(x - COURTS.x) < 75 && Math.abs(y - COURTS.y) < 60) || (P.playground && Math.hypot(x - PLAYG.x, y - PLAYG.y) < 45)) continue;   // never inside a deep fence or on the soccer field, courts or playground
+      if (x > lx0 - 32 && x < lx0 + lw + 32 && y > ly0 - 28 && y < ly0 + ld + 24) continue;
+      if (Math.hypot(x, y) < F + 45 || (P.soccer && inSoccer(x, y, 14)) || (P.courts && Math.abs(x - COURTS.x) < 75 && Math.abs(y - COURTS.y) < 60) || (P.playground && Math.hypot(x - PLAYG.x, y - PLAYG.y) < 45) || (P.tennis && Math.abs(x - TENNIS.x) < 80 && Math.abs(y - TENNIS.y) < 75) || (P.pool && Math.hypot(x - POOL.x, y - POOL.y) < 110) || (P.miracle && Math.hypot(x - MIRACLE.x, y - MIRACLE.y) < MIRACLE.R + 25)) continue;   // never inside a deep fence or on the soccer field, courts or playground
       if (spots.some(t => Math.hypot(t.x - x, t.y - y) < 13)) continue;
       spots.push({ x, y });
       const h = stRng(26, 48), rad = stRng(9, 15), pine = stR() < 0.3, fall = stR() < 0.16;
       trunks.push({ m: stM(x, y, h * 0.2, 0, 0, 1.3, 1.3, h * 0.4), c: '#4b3a2c' });
       if (pine) pines.push({ m: stM(x, y, h * 0.55, 0, 0, rad * 0.8, rad * 0.8, h * 0.9), c: stPick(['#1d3f2a', '#22472f', '#183825']) });
       else leafy.push({ m: stM(x, y, h * 0.62, 0, 0, rad, rad, rad * 1.15), c: fall ? stPick(['#94502c', '#a3772f', '#7d3424', '#8f8131']) : stPick(['#21502a', '#275c30', '#1c4625', '#2d6334', '#244f25']) });
+    }
+    if (P.treeRow) for (let s = Math.max(80, (P.dugS || 37) + 24); s < Math.min(F - 20, 240); s += 15) {   // a row of trees just outside one foul line
+      const p = stLP(P.treeRow.sd, s + stRng(-3, 3), stRng(34, 44)), h = stRng(20, 30), rad = stRng(7, 10);
+      trunks.push({ m: stM(p.x, p.y, h * 0.2, 0, 0, 1.1, 1.1, h * 0.4), c: '#4b3a2c' });
+      if (P.treeRow.pine) pines.push({ m: stM(p.x, p.y, h * 0.55, 0, 0, rad * 0.75, rad * 0.75, h * 0.9), c: stPick(['#1d3f2a', '#22472f', '#183825']) });
+      else leafy.push({ m: stM(p.x, p.y, h * 0.62, 0, 0, rad, rad, rad * 1.1), c: stPick(['#21502a', '#275c30', '#2d6334']) });
     }
     fieldGroup.add(stInst(ST_GEO.cyl, new THREE.MeshLambertMaterial({ color: '#ffffff' }), trunks), stInst(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshLambertMaterial({ color: '#9c9c9c', flatShading: true }), leafy), stInst(new THREE.ConeGeometry(1, 1, 8).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#9c9c9c' }), pines));
     // a little neighborhood past right field with lit windows
@@ -3895,6 +3957,9 @@ function buildField() {
     if (P.soccer) stSoccer(FAR);
     if (P.courts) stCourts(FAR);
     if (P.playground) stPlayground(FAR);
+    if (P.tennis) stTennis(FAR);
+    if (P.pool) stPool(FAR);
+    if (P.miracle) stMiracle(FAR);
     if (P.open) for (let a = -42; a <= 42.1; a += 6) { const p = G.polar(F, a); NEAR.add(new THREE.ConeGeometry(0.55, 1.5, 8).rotateX(Math.PI / 2), stM(p.x, p.y, 0.75), '#ff7a1a'); }   // cones on the home run line
   }
 
